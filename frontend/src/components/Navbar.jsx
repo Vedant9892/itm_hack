@@ -44,7 +44,7 @@ const Navbar = () => {
           </Link>
 
           {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-4">
             {navLinks.map((link, idx) => (
               <motion.div
                 key={link.name}
@@ -60,6 +60,25 @@ const Navbar = () => {
                 </Link>
               </motion.div>
             ))}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: navLinks.length * 0.1 }}
+              className="flex items-center gap-3"
+            >
+              <Link
+                to="/login"
+                className="btn-secondary py-2 px-4 text-sm font-semibold"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="btn-secondary py-2 px-4 text-sm font-semibold"
+              >
+                Sign Up
+              </Link>
+            </motion.div>
             <motion.button
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -98,6 +117,20 @@ const Navbar = () => {
                     {link.name}
                   </Link>
                 ))}
+                <Link
+                  to="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="btn-secondary w-full text-center py-3"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/signup"
+                  onClick={() => setIsOpen(false)}
+                  className="btn-secondary w-full text-center py-3"
+                >
+                  Sign Up
+                </Link>
                 <button
                   onClick={() => { setIsOpen(false); setModalOpen(true); }}
                   className="btn-primary w-full"
