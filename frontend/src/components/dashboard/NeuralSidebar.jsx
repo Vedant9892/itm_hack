@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { logout } from '../../store/slices/authSlice';
 import { 
   HiOutlineHome, 
@@ -9,12 +9,14 @@ import {
   HiOutlineCog6Tooth,
   HiOutlineArrowLeftOnRectangle,
   HiChevronDoubleLeft,
-  HiChevronDoubleRight
+  HiChevronDoubleRight,
+  HiOutlineDevicePhoneMobile,
 } from 'react-icons/hi2';
 
 const NeuralSidebar = ({ isCollapsed, setCollapsed }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useSelector((state) => state.auth);
 
   const handleLogout = () => {
@@ -23,10 +25,11 @@ const NeuralSidebar = ({ isCollapsed, setCollapsed }) => {
   };
 
   const menuItems = [
-    { name: 'Dashboard', icon: <HiOutlineCpuChip />, active: true },
-    { name: 'Reports', icon: <HiOutlineClipboardDocumentList />, active: false },
-    { name: 'Anatomy', icon: <HiOutlineHome />, active: false },
-    { name: 'Settings', icon: <HiOutlineCog6Tooth />, active: false },
+    { name: 'Dashboard', icon: <HiOutlineCpuChip />, path: '/dashboard' },
+    { name: 'Smart Devices', icon: <HiOutlineDevicePhoneMobile />, path: '/smart-devices' },
+    { name: 'Reports', icon: <HiOutlineClipboardDocumentList />, path: null },
+    { name: 'Anatomy', icon: <HiOutlineHome />, path: null },
+    { name: 'Settings', icon: <HiOutlineCog6Tooth />, path: null },
   ];
 
   return (
@@ -55,24 +58,32 @@ const NeuralSidebar = ({ isCollapsed, setCollapsed }) => {
 
       {/* Nav Items */}
       <nav className="flex-1 mt-10 px-6 space-y-4">
-        {menuItems.map((item) => (
-          <motion.div 
-            key={item.name}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all duration-300 group ${item.active ? 'bg-brand-primary/5 text-brand-primary border border-brand-primary/10' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
-          >
-            <span className={`text-2xl transition-colors ${item.active ? 'text-brand-primary' : 'group-hover:text-brand-primary'}`}>
-              {item.icon}
-            </span>
-            {!isCollapsed && <span className="text-sm font-bold whitespace-nowrap">{item.name}</span>}
-            
-            {/* Active Indicator Dot */}
-            {item.active && !isCollapsed && (
-              <div className="ml-auto w-1.5 h-1.5 bg-brand-primary rounded-full" />
-            )}
-          </motion.div>
-        ))}
+        {menuItems.map((item) => {
+          const isActive = item.path ? location.pathname === item.path : false;
+          return (
+            <motion.div 
+              key={item.name}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => item.path && navigate(item.path)}
+              className={`flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all duration-300 group ${
+                isActive
+                  ? 'bg-brand-primary/5 text-brand-primary border border-brand-primary/10'
+                  : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <span className={`text-2xl transition-colors ${isActive ? 'text-brand-primary' : 'group-hover:text-brand-primary'}`}>
+                {item.icon}
+              </span>
+              {!isCollapsed && <span className="text-sm font-bold whitespace-nowrap">{item.name}</span>}
+              
+              {/* Active Indicator Dot */}
+              {isActive && !isCollapsed && (
+                <div className="ml-auto w-1.5 h-1.5 bg-brand-primary rounded-full" />
+              )}
+            </motion.div>
+          );
+        })}
       </nav>
 
       {/* Bottom Actions */}

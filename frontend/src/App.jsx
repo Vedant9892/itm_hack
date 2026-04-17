@@ -18,3 +18,21 @@ function App() {
 }
 
 export default App;
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import HomePage from './pages/HomePage';
+import UserDashboard from './pages/UserDashboard';
+import SmartDevices from './pages/SmartDevices';
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/dashboard" element={<UserDashboard />} />
+        <Route path="/smart-devices" element={<SmartDevices />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
