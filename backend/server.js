@@ -1,17 +1,52 @@
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 dotenv.config();
 
+const mongoose = require('mongoose');
+const { Server } = require('socket.io');
 const { createClient } = require('@supabase/supabase-js');
 const aiService = require('./src/services/aiService');
 
+// Google Fit routes
+const googleFitAuthRoutes = require('./src/googlefit/authRoutes');
+const googleFitHealthRoutes = require('./src/googlefit/healthRoutes');
+const { startPolling } = require('./src/googlefit/pollerService');
+
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
+// Socket.IO for real-time Google Fit updates
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5174',
+    methods: ['GET', 'POST'],
+  },
+});
+
+io.on('connection', (socket) => {
+  console.log('[Socket.IO] Client connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('[Socket.IO] Client disconnected:', socket.id);
+  });
+});
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:5174',
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ],
+  credentials: true,
+}));
 app.use(express.json());
+
+// Mount Google Fit routes
+app.use('/api/auth', googleFitAuthRoutes);
+app.use('/api/googlefit/data', googleFitHealthRoutes);
 
 // Initialize Supabase Client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -317,6 +352,26 @@ app.post('/generate-workout', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// Bootstrap — connect MongoDB then start server
+async function bootstrap() {
+  try {
+    const mongoUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/itm_health';
+    await mongoose.connect(mongoUri);
+    console.log('[MongoDB] Connected to', mongoUri);
+
+    // Start Google Fit polling (every 15s)
+    startPolling(io);
+
+    server.listen(PORT, () => {
+      console.log(`[Server] Running on http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error('[Server] Startup failed:', err);
+    process.exit(1);
+  }
+}
+
+bootstrap();
+
+
+
