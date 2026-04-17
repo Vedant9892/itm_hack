@@ -9,8 +9,12 @@ export default {
       colors: {
         // Adding your "Startup" palette from the architecture
         brand: {
-          primary: '#6366f1', // Indigo/Purple
-          dark: '#0f172a',    // Slate/Dark
+          bg: '#f8fafc',         // Slate 50 (Foundation)
+          surface: '#ffffff',    // White (Surface)
+          primary: '#2563eb',    // Blue (Trust)
+          secondary: '#10b981',  // Emerald (Vitality/Health)
+          accent: '#f43f5e',     // Rose (Heart)
+          muted: '#64748b',      // Slate 500 (Muted)
         }
       }
     },
