@@ -3,10 +3,13 @@ import HomePage from './pages/HomePage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import UserDashboard from './pages/UserDashboard';
+import { Toaster } from 'sonner';
 import SmartDevices from './pages/SmartDevices';
 
 function App() {
   return (
+    <>
+    <Toaster richColors position="top-right" />
     <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
@@ -16,6 +19,7 @@ function App() {
         <Route path="/smart-devices" element={<SmartDevices />} />
       </Routes>
     </Router>
+    </>
   );
 }
 
