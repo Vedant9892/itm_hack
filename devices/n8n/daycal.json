@@ -1,0 +1,68 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "workout-plan"
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4.1-mini",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a professional fitness coach AI."
+          },
+          {
+            "role": "user",
+            "content": "Analyze the given user data and generate a structured JSON response.\n\nRules:\n- Output MUST be valid JSON only\n- Keep response concise and structured\n\nClassification Rules:\n- Beginner: pushups < 10, squats < 20, plank < 30s\n- Intermediate: pushups 10–25, squats 20–50, plank 30–90s\n- Advanced: above that\n\nWorkout Rules:\n- 4–6 exercises\n- Include: push, pull, legs, core\n- Use available equipment\n- Avoid injury-aggravating exercises\n\nOutput format:\n{\n  \"message\": \"Onboarding successful\",\n  \"profile\": null,\n  \"strengthAssessment\": {...input},\n  \"aiAnalysis\": {\n    \"experienceLevel\": \"\",\n    \"strengthScore\": number,\n    \"day1Workout\": [],\n    \"safetyNotes\": \"\"\n  }\n}\n\nUser Data:\n{{ $json }}"
+          }
+        ]
+      },
+      "id": "AI",
+      "name": "AI Agent",
+      "type": "n8n-nodes-base.openai",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "operation": "parseJson",
+        "jsonData": "={{ $json[\"choices\"][0][\"message\"][\"content\"] }}"
+      },
+      "id": "Parse",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "Response",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "AI Agent", "type": "main", "index": 0 }]]
+    },
+    "AI Agent": {
+      "main": [[{ "node": "Parse JSON", "type": "main", "index": 0 }]]
+    },
+    "Parse JSON": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  }
+}
