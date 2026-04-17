@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { setUser, setLoading, setError } from '../store/slices/authSlice';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Hero from '../components/Hero';
 import Features from '../components/Features';
@@ -108,9 +109,17 @@ const HomePage = () => {
               <p className="text-slate-400 mb-10 max-w-xl mx-auto">
                 Join thousands of healthcare professionals and individuals using our AI ecosystem to drive better outcomes.
               </p>
-              <button className="btn-primary mx-auto">
-                Start Free Trial
-              </button>
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-6">
+                <button className="btn-primary mx-auto sm:mx-0 px-6 py-3 text-sm font-semibold">
+                  Start Free Trial
+                </button>
+                <Link to="/login" className="btn-secondary px-6 py-3 text-sm font-semibold">
+                  Log In
+                </Link>
+                <Link to="/signup" className="btn-secondary px-6 py-3 text-sm font-semibold">
+                  Sign Up
+                </Link>
+              </div>
             </motion.div>
           </div>
           
