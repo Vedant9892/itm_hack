@@ -15,6 +15,8 @@ import {
   HiOutlineClock,
   HiOutlineSignal,
   HiMiniArrowLeftOnRectangle,
+  HiOutlineFire,
+  HiOutlineSparkles,
 } from 'react-icons/hi2';
 import NeuralSidebar from '../components/dashboard/NeuralSidebar';
 
@@ -299,6 +301,38 @@ function HealthDashboard({ data, history, summary, onDisconnect }) {
 
   const totalSteps = summary?.totalSteps || data?.steps || 0;
 
+  // ── Stress state ───────────────────────────────────────────────────────────
+  const [stress, setStress] = useState(null);
+  const [stressLoading, setStressLoading] = useState(false);
+  const [stressError, setStressError] = useState(null);
+
+  async function fetchStress() {
+    setStressLoading(true);
+    setStressError(null);
+    try {
+      const res = await fetch(`${API_BASE}/data/stress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'default-user' }),
+      });
+      const json = await res.json();
+      setStress(json);
+    } catch (err) {
+      setStressError('Could not reach stress service.');
+    } finally {
+      setStressLoading(false);
+    }
+  }
+
+  // Auto-fetch stress on first load
+  useEffect(() => { fetchStress(); }, []);
+
+  const stressResult = stress?.result;
+  const stressScore = stressResult?.stress_score ?? null;
+  const stressLevel = stressResult?.stress_level || 'unknown';
+  const stressColor = stressLevel === 'high' ? '#ef4444' : stressLevel === 'moderate' ? '#f59e0b' : '#10b981';
+  const stressBg = stressLevel === 'high' ? 'from-red-50 to-rose-50 border-red-100' : stressLevel === 'moderate' ? 'from-amber-50 to-yellow-50 border-amber-100' : 'from-emerald-50 to-green-50 border-emerald-100';
+
   return (
     <div className="flex-1 overflow-y-auto p-8 bg-[#fbfcfd] custom-scrollbar">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -506,6 +540,100 @@ function HealthDashboard({ data, history, summary, onDisconnect }) {
             </div>
           </motion.div>
         </div>
+
+        {/* ── Stress Analyzer ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className={`bg-gradient-to-br ${stressBg} border rounded-[2rem] p-6 shadow-sm hover:shadow-xl transition-all duration-500`}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: `${stressColor}20`, color: stressColor }}>
+                <HiOutlineFire />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI Stress Analyzer</p>
+                <p className="text-[9px] text-slate-400">Powered by n8n workflow · Google Fit data</p>
+              </div>
+            </div>
+            <button
+              onClick={fetchStress}
+              disabled={stressLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-100 rounded-xl text-[10px] font-bold text-slate-500 hover:text-brand-primary hover:border-brand-primary/20 hover:bg-brand-primary/5 transition-all disabled:opacity-50 shadow-sm"
+            >
+              <HiOutlineArrowPath className={`text-sm ${stressLoading ? 'animate-spin' : ''}`} />
+              {stressLoading ? 'Analyzing...' : 'Refresh'}
+            </button>
+          </div>
+
+          {stressError && (
+            <div className="flex items-center gap-2 text-rose-500 text-xs font-bold mb-4">
+              <HiOutlineXCircle /> {stressError}
+            </div>
+          )}
+
+          {stressLoading && !stressResult && (
+            <div className="flex items-center gap-3 py-6 justify-center">
+              <div className="w-6 h-6 border-2 border-brand-primary/30 border-t-brand-primary rounded-full animate-spin" />
+              <span className="text-xs text-slate-400">Sending data to n8n stress engine…</span>
+            </div>
+          )}
+
+          {stressResult && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Score Gauge */}
+              <div className="flex flex-col items-center justify-center bg-white/70 rounded-2xl p-5 border border-white shadow-sm">
+                <div className="relative flex items-center justify-center mb-3">
+                  <CircularProgress value={stressScore} max={100} color={stressColor} size={100} />
+                  <div className="absolute text-center">
+                    <p className="text-2xl font-extrabold" style={{ color: stressColor }}>{stressScore}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase">/100</p>
+                  </div>
+                </div>
+                <p className="text-sm font-extrabold capitalize" style={{ color: stressColor }}>
+                  {stressLevel} Stress
+                </p>
+                <p className="text-[9px] text-slate-400 font-medium mt-0.5">Stress Score</p>
+              </div>
+
+              {/* Recommendation */}
+              <div className="md:col-span-2 flex flex-col justify-center bg-white/70 rounded-2xl p-5 border border-white shadow-sm space-y-4">
+                <div className="flex items-start gap-3">
+                  <HiOutlineSparkles className="text-xl mt-0.5 flex-shrink-0" style={{ color: stressColor }} />
+                  <p className="text-sm font-semibold text-slate-700 leading-relaxed">
+                    {stressResult.recommendation}
+                  </p>
+                </div>
+
+                {/* Input summary */}
+                {stress?.input && (
+                  <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100">
+                    {[
+                      { label: 'Avg HR', value: `${stress.input.avg_heart_rate} bpm` },
+                      { label: 'Resting HR', value: `${stress.input.resting_heart_rate} bpm` },
+                      { label: 'Steps', value: (stress.input.total_steps || 0).toLocaleString() },
+                      { label: 'Activity', value: stress.input.activity_level },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{item.label}</span>
+                        <span className="text-[11px] font-bold text-slate-700">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!stress?.success && (
+                  <p className="text-[9px] text-amber-500 font-bold">
+                    ⚠ n8n offline — result computed locally using same algorithm
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </motion.div>
 
         {/* ── History Table ── */}
         {history.length > 0 && (
