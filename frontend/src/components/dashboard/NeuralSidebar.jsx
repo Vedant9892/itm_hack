@@ -11,6 +11,7 @@ import {
   HiChevronDoubleLeft,
   HiChevronDoubleRight,
   HiOutlineDevicePhoneMobile,
+  HiOutlineFire,
 } from 'react-icons/hi2';
 
 const NeuralSidebar = ({ isCollapsed, setCollapsed }) => {
@@ -26,6 +27,7 @@ const NeuralSidebar = ({ isCollapsed, setCollapsed }) => {
 
   const menuItems = [
     { name: 'Dashboard', icon: <HiOutlineCpuChip />, path: '/dashboard' },
+    { name: 'Fix Soreness', icon: <HiOutlineFire />, path: '/soreness' },
     { name: 'Smart Devices', icon: <HiOutlineDevicePhoneMobile />, path: '/smart-devices' },
     { name: 'Reports', icon: <HiOutlineClipboardDocumentList />, path: null },
     { name: 'Anatomy', icon: <HiOutlineHome />, path: '/anatomy' },

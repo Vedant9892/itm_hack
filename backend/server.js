@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const { createClient } = require('@supabase/supabase-js');
 const aiService = require('./src/services/aiService');
+const sorenessRoutes = require('./src/routes/sorenessRoutes');
 
 // Google Fit routes
 const googleFitAuthRoutes = require('./src/googlefit/authRoutes');
@@ -57,6 +58,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 app.get('/', (req, res) => {
   res.send('AI Adaptive Workout Planner API is running...');
 });
+
+// Soreness Relief Routes
+app.use('/soreness', sorenessRoutes);
 
 /**
  * Endpoint: /onboarding
