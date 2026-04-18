@@ -67,17 +67,18 @@ app.use('/soreness', sorenessRoutes);
  * Description: Initializes the user's starting profile after they sign up.
  */
 app.post('/onboarding', async (req, res) => {
-  const { 
-    userId, 
-    fullName, 
-    weight, 
-    height, 
-    gender, 
-    injuries, 
-    workoutType, 
-    equipment, 
+  const {
+    userId,
+    fullName,
+    weight,
+    height,
+    gender,
+    injuries,
+    workoutType,
+    equipment,
     goal,
-    strengthAssessment // Accept the assessment data
+    strengthAssessment, // Accept the assessment data
+    todayReadiness // Accept the readiness data
   } = req.body;
 
   if (!userId) {
@@ -95,7 +96,7 @@ app.post('/onboarding', async (req, res) => {
         gender: gender,
         injuries: injuries,
         workout_type: workoutType,
-        available_equipment: equipment, 
+        available_equipment: equipment,
         fitness_goal: goal,
         // Map strength assessment fields
         pushups: strengthAssessment?.pushups,
@@ -105,13 +106,36 @@ app.post('/onboarding', async (req, res) => {
 
     if (error) throw error;
 
+    const readinessInput = todayReadiness || {};
+    const fallbackEnergy = readinessInput.energetic ?? readinessInput.energy ?? readinessInput.energy_level ?? 5;
+    const fallbackSoreness = readinessInput.soreness ?? readinessInput.soreness_level ?? 3;
+    const fallbackStress = readinessInput.stress ?? readinessInput.stress_level ?? 3;
+    const fallbackSleep = readinessInput.sleep ?? readinessInput.sleepDuration ?? readinessInput.sleep_quality ?? 7;
+    const computedReadinessScore = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(
+          ((fallbackEnergy * 10) + ((10 - fallbackSoreness) * 10) + ((10 - fallbackStress) * 10) + ((fallbackSleep / 10) * 100)) / 4
+        )
+      )
+    );
+
     // Trigger AI analysis and workout generation
     let aiAnalysis = null;
     try {
       aiAnalysis = await aiService.generateDay1Workout({
-        gender, weight, height, goal, workoutType, equipment, injuries, strengthAssessment
+        gender,
+        weight,
+        height,
+        goal,
+        workoutType,
+        equipment,
+        injuries,
+        strengthAssessment,
+        todayReadiness
       });
-      
+
       // Optional: Save AI findings back to the profile
       if (aiAnalysis) {
         await supabase
@@ -131,6 +155,7 @@ app.post('/onboarding', async (req, res) => {
       message: 'Onboarding successful',
       profile: data,
       strengthAssessment,
+      readinessScore: aiAnalysis?.readinessScore ?? computedReadinessScore,
       aiAnalysis // Include the AI's suggestions in the response
     });
   } catch (error) {
@@ -190,8 +215,8 @@ app.post('/log-workout', async (req, res) => {
   const { workoutId, exerciseName, rpe, sets, markComplete } = req.body;
 
   if (!workoutId || !exerciseName || !sets || sets.length === 0) {
-    return res.status(400).json({ 
-      error: 'workoutId, exerciseName, and at least one set are required' 
+    return res.status(400).json({
+      error: 'workoutId, exerciseName, and at least one set are required'
     });
   }
 
