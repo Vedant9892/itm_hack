@@ -25,21 +25,6 @@ function App() {
             </Router>
         </>
     );
-  return (
-    <>
-      <Toaster richColors position="top-right" />
-      <Router>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/dashboard" element={<UserDashboard />} />
-          <Route path="/smart-devices" element={<SmartDevices />} />
-          <Route path="/anatomy" element={<AnatomyPage />} />
-        </Routes>
-      </Router>
-    </>
-  );
 }
 
 export default App;
