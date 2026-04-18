@@ -49,10 +49,15 @@ const RadialGauge = ({ value = 72 }) => {
 };
 
 /* ── RECOVERY BARS ─────────────────────────────────── */
-const Parameters = () => {
-  const muscles = [
+const Parameters = ({ readiness }) => {
+  const muscles = readiness ? [
+    { name: 'Sleep', pct: Math.min((readiness.sleepHours / 8) * 100, 100).toFixed(0), color: '#6366f1' },
+    { name: 'Soreness', pct: (readiness.soreness * 10).toFixed(0), color: '#2563eb' },
+    { name: 'Stress', pct: (readiness.stress * 10).toFixed(0), color: '#f43f5e' },
+    { name: 'Energy', pct: (readiness.energetic * 10).toFixed(0), color: '#10b981' },
+  ] : [
     { name: 'Sleep', pct: 85, color: '#6366f1' }, { name: 'Soreness', pct: 62, color: '#2563eb' },
-    { name: 'Stress', pct: 40, color: '#f43f5e' }, { name: 'Fatigue', pct: 90, color: '#10b981' },
+    { name: 'Stress', pct: 40, color: '#f43f5e' }, { name: 'Energy', pct: 90, color: '#10b981' },
   ];
   return (
     <div className="px-5 pb-5 space-y-2">
@@ -68,6 +73,31 @@ const Parameters = () => {
         </div>
       ))}
     </div>
+  );
+};
+
+/* ── DYNAMIC READINESS CONTENT ─────────────────────── */
+const ReadinessTileContent = ({ aiWorkout, todayReadiness, isLoading }) => {
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 h-[250px]">
+        <AiOutlineLoading3Quarters className="animate-spin text-3xl text-brand-primary mb-3" />
+        <h3 className="text-sm font-extrabold text-slate-700">Calculating Readiness...</h3>
+        <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest text-center">Analyzing biometrics</p>
+      </div>
+    );
+  }
+
+  const score = aiWorkout?.readinessScore ?? aiWorkout?.strengthScore ?? 78;
+
+  return (
+    <>
+      <RadialGauge value={score} />
+      <div className="border-t border-slate-50 pt-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-5 mb-2">Parameters</p>
+        <Parameters readiness={todayReadiness} />
+      </div>
+    </>
   );
 };
 
@@ -736,7 +766,7 @@ const UserDashboard = () => {
   const [tab, setTab] = useState('glance');
   const [selDay, setSelDay] = useState(null);
   const { user } = useSelector(s => s.auth);
-  const { todayWorkout, isLoadingWorkout } = useSelector(s => s.workout || {});
+  const { todayWorkout, todayReadiness, isLoadingWorkout } = useSelector(s => s.workout || {});
 
   console.log(todayWorkout);
 
@@ -796,11 +826,7 @@ const UserDashboard = () => {
                   {/* Col 1 Row 1 — Readiness Score */}
                   <TileCard>
                     <TileHeader title="Readiness Score" sub="Daily Command" icon={<HiOutlineBolt />} />
-                    <RadialGauge value={78} />
-                    <div className="border-t border-slate-50 pt-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-5 mb-2">Parameters</p>
-                      <Parameters />
-                    </div>
+                    <ReadinessTileContent aiWorkout={todayWorkout} todayReadiness={todayReadiness} isLoading={isLoadingWorkout} />
                   </TileCard>
 
                   {/* Col 2 — Today's Session spans both rows */}

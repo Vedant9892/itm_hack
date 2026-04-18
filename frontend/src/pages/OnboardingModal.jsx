@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { setWorkoutLoading, setTodayWorkout } from '../store/slices/workoutSlice';
+import { setWorkoutLoading, setTodayWorkout, setTodayReadiness } from '../store/slices/workoutSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineUser, HiOutlineScale, HiOutlineLightningBolt,
@@ -66,6 +66,17 @@ export default function StartupOnboarding({ isOpen, onClose }) {
   const [tempInput, setTempInput] = useState("");
 
   const handleNext = async () => {
+    // Step-by-step validations
+    if (currentStep === 0 && !formData.fullName.trim()) {
+      return toast.error("Please enter your formal processing name.");
+    }
+    if (currentStep === 1 && (!formData.weight || formData.weight <= 0 || !formData.height || formData.height <= 0)) {
+      return toast.error("Please enter valid biometric telemetry (height/weight).");
+    }
+    if (currentStep === 5 && (!formData.todayReadiness.sleepDuration || formData.todayReadiness.sleepDuration <= 0)) {
+      return toast.error("Please enter a valid sleep duration.");
+    }
+
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(s => s + 1);
     } else {
@@ -80,6 +91,7 @@ export default function StartupOnboarding({ isOpen, onClose }) {
       // Ensure numeric fields are actually numbers before sending
       const cleanData = {
         ...formData,
+        equipment: formData.workoutType === 'gym' ? ['Full Gym Facility'] : formData.equipment,
         weight: Number(formData.weight),
         height: Number(formData.height),
         strengthAssessment: {
@@ -104,6 +116,9 @@ export default function StartupOnboarding({ isOpen, onClose }) {
       // Fire off API request in the background
       onBoarding(cleanData)
         .then(result => {
+          if (result && result.todayReadiness) {
+            dispatch(setTodayReadiness(result.todayReadiness));
+          }
           if (result && result.aiAnalysis) {
             dispatch(setTodayWorkout(result.aiAnalysis));
           }
@@ -259,15 +274,22 @@ export default function StartupOnboarding({ isOpen, onClose }) {
                         <SelectButton key={type} label={type} active={formData.workoutType === type} onClick={() => setFormData({ ...formData, workoutType: type })} />
                       ))}
                     </div>
-                    <ArrayInput
-                      label="Available Equipment"
-                      placeholder="e.g. Dumbbells, Bench"
-                      items={formData.equipment}
-                      onAdd={() => addItem('equipment')}
-                      onRemove={(i) => removeItem('equipment', i)}
-                      tempValue={tempInput}
-                      setTemp={setTempInput}
-                    />
+                    
+                    <AnimatePresence>
+                      {formData.workoutType !== 'gym' && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                          <ArrayInput
+                            label="Available Equipment"
+                            placeholder="e.g. Dumbbells, Bench"
+                            items={formData.equipment}
+                            onAdd={() => addItem('equipment')}
+                            onRemove={(i) => removeItem('equipment', i)}
+                            tempValue={tempInput}
+                            setTemp={setTempInput}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
 

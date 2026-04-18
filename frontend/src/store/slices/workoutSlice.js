@@ -2,6 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
   todayWorkout: null,
+  todayReadiness: null,
   isLoadingWorkout: false,
 };
 
@@ -15,9 +16,12 @@ const workoutSlice = createSlice({
     setTodayWorkout: (state, action) => {
       state.todayWorkout = action.payload;
     },
+    setTodayReadiness: (state, action) => {
+      state.todayReadiness = action.payload;
+    },
   },
 });
 
-export const { setWorkoutLoading, setTodayWorkout } = workoutSlice.actions;
+export const { setWorkoutLoading, setTodayWorkout, setTodayReadiness } = workoutSlice.actions;
 
 export default workoutSlice.reducer;
