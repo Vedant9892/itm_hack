@@ -1,0 +1,170 @@
+{
+  "name": "Soreness Relief Plan Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "soreness-relief",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "soreness-relief"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate incoming payload\nconst body = $input.first().json.body || $input.first().json;\n\nconst muscles = body.sore_muscles || [];\nconst timestamp = body.timestamp || new Date().toISOString();\nconst userId = body.user_id || 'anonymous';\n\nif (!muscles || muscles.length === 0) {\n  throw new Error('No sore muscles provided in the request payload.');\n}\n\n// Build a structured prompt context\nconst muscleList = muscles.join(', ');\n\nreturn [{\n  json: {\n    muscles,\n    muscleList,\n    userId,\n    timestamp,\n    prompt: `You are a professional sports physiotherapist and recovery coach. \nA user reports soreness in the following muscle groups: ${muscleList}.\n\nCreate a targeted recovery plan with:\n1. 4-6 rehabilitation exercises (low intensity, recovery-focused)\n2. 4-6 targeted stretches (static and dynamic)\n\nFor each exercise or stretch, provide:\n- id: unique string (e.g., \"ex_1\", \"st_1\")\n- name: clear exercise name\n- sets: number of sets (for exercises only, null for stretches)\n- reps: rep range as string (e.g., \"12-15\") or null\n- duration: time string (e.g., \"30s\", \"45s\", \"1 min\")\n- description: 1-2 sentence clear instruction\n- muscle: which muscle group this targets\n- intensity: \"low\" | \"medium\" | \"rest\"\n- tips: one key form tip\n\nRespond ONLY with valid JSON in this exact structure (no markdown, no explanation):\n{\n  \"plan_title\": \"Recovery Plan for [muscle list]\",\n  \"estimated_duration\": \"X mins\",\n  \"exercises\": [...],\n  \"stretches\": [...],\n  \"recovery_tips\": [\"tip1\", \"tip2\", \"tip3\"]\n}`\n  }\n}];\n"
+      },
+      "id": "parse-input",
+      "name": "Parse & Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({\n  model: 'llama-3.3-70b-versatile',\n  messages: [\n    { role: 'system', content: 'You are a professional sports physiotherapist. Always respond with valid JSON only, no markdown.' },\n    { role: 'user', content: $json.prompt }\n  ],\n  temperature: 0.4,\n  max_tokens: 2048\n}) }}",
+        "options": {}
+      },
+      "id": "groq-api-call",
+      "name": "Groq AI — Generate Plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the Groq response and format it for the frontend\nconst groqResponse = $input.first().json;\nconst inputData = $('Parse & Validate Input').first().json;\n\nlet planData;\n\ntry {\n  const rawContent = groqResponse.choices[0].message.content;\n  // Strip any accidental markdown code fences\n  const cleaned = rawContent.replace(/```json/g, '').replace(/```/g, '').trim();\n  planData = JSON.parse(cleaned);\n} catch (parseError) {\n  // Fallback: return a structured error that frontend can handle\n  return [{\n    json: {\n      success: false,\n      error: 'Failed to parse AI response',\n      muscles: inputData.muscles,\n      timestamp: inputData.timestamp\n    }\n  }];\n}\n\n// Ensure IDs exist on every item\nconst exercises = (planData.exercises || []).map((ex, i) => ({\n  ...ex,\n  id: ex.id || `ex_${i + 1}`,\n  type: 'exercise'\n}));\n\nconst stretches = (planData.stretches || []).map((st, i) => ({\n  ...st,\n  id: st.id || `st_${i + 1}`,\n  type: 'stretch',\n  sets: st.sets || null,\n  reps: st.reps || null\n}));\n\nreturn [{\n  json: {\n    success: true,\n    plan_title: planData.plan_title || `Recovery Plan for ${inputData.muscleList}`,\n    estimated_duration: planData.estimated_duration || '20-30 mins',\n    muscles: inputData.muscles,\n    exercises,\n    stretches,\n    recovery_tips: planData.recovery_tips || [],\n    generated_at: new Date().toISOString(),\n    user_id: inputData.userId\n  }\n}];\n"
+      },
+      "id": "format-response",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\": false, \"error\": \"{{ $json.message }}\"}",
+        "options": {
+          "responseCode": 500,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse & Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Groq AI — Generate Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq AI — Generate Plan": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["soreness", "recovery", "ai"],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-18T00:00:00.000Z",
+  "versionId": "1"
+}
