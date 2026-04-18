@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { setWorkoutLoading, setTodayWorkout } from '../store/slices/workoutSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   HiOutlineUser, HiOutlineScale, HiOutlineLightningBolt,
   HiOutlineShieldCheck, HiOutlineBeaker, HiOutlineCheckCircle,
-  HiChevronRight, HiChevronLeft, HiOutlineX, HiPlus, HiTrash
+  HiChevronRight, HiChevronLeft, HiOutlineX, HiPlus, HiTrash, HiOutlineHeart
 } from 'react-icons/hi';
 import { AiOutlineLoading3Quarters } from 'react-icons/ai'; // For loading state
 import { onBoarding } from '../services/onboardingService'; // Import your service
@@ -24,13 +27,18 @@ const STEPS = [
   { id: 'biometrics', title: 'Biometrics', icon: <HiOutlineScale /> },
   { id: 'physical', title: 'Physical Status', icon: <HiOutlineShieldCheck /> },
   { id: 'context', title: 'Environment', icon: <HiOutlineBeaker /> },
-  { id: 'assessment', title: 'Strength', icon: <HiOutlineLightningBolt /> }
+  { id: 'assessment', title: 'Strength', icon: <HiOutlineLightningBolt /> },
+  { id: 'readiness', title: 'Readiness', icon: <HiOutlineHeart /> }
 ];
 
-export default function StartupOnboarding({ isOpen, onClose, userId }) {
+export default function StartupOnboarding({ isOpen, onClose }) {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  const { userId } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
     userId: userId || "",
@@ -46,6 +54,12 @@ export default function StartupOnboarding({ isOpen, onClose, userId }) {
       pushups: 0,
       squats: 0,
       plankSeconds: 0
+    },
+    todayReadiness: {
+      stress: 1,
+      energy: 1,
+      soreness: 1,
+      sleepDuration: 8
     }
   });
 
@@ -72,15 +86,38 @@ export default function StartupOnboarding({ isOpen, onClose, userId }) {
           pushups: Number(formData.strengthAssessment.pushups),
           squats: Number(formData.strengthAssessment.squats),
           plankSeconds: Number(formData.strengthAssessment.plankSeconds),
+        },
+        todayReadiness: {
+          stress: Number(formData.todayReadiness.stress),
+          energy: Number(formData.todayReadiness.energy),
+          soreness: Number(formData.todayReadiness.soreness),
+          sleepDuration: Number(formData.todayReadiness.sleepDuration)
         }
       };
 
-      const result = await onBoarding(cleanData);
-      console.log("Data:", formData);
-      toast.success("Profile created successfully!");
-      onClose(); // Close modal on success
+      toast.success("Profile created! AI is generating your personalized plan...");
+      
+      onClose(); // Close modal instantly
+      dispatch(setWorkoutLoading(true));
+      navigate('/dashboard'); // Take user to dashboard immediately
+
+      // Fire off API request in the background
+      onBoarding(cleanData)
+        .then(result => {
+          if (result && result.aiAnalysis) {
+            dispatch(setTodayWorkout(result.aiAnalysis));
+          }
+        })
+        .catch(err => {
+          console.error("Delayed API generation failed", err);
+          toast.error("Failed to generate AI plan. Please refresh or retry.");
+        })
+        .finally(() => {
+          dispatch(setWorkoutLoading(false));
+        });
+
     } catch (err) {
-      setError("Failed to save profile. Please try again.");
+      setError("Data preparation failed. Please try again.");
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -102,47 +139,53 @@ export default function StartupOnboarding({ isOpen, onClose, userId }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/20 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-sm">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className={`relative flex flex-col md:flex-row w-full max-w-5xl h-[700px] overflow-hidden rounded-[2.5rem] ${theme.surface} shadow-2xl border ${theme.border}`}
+        className="relative flex flex-col md:flex-row w-full max-w-5xl h-[700px] overflow-hidden rounded-2xl bg-white shadow-[0_20px_60px_rgb(0,0,0,0.12)] border border-slate-100/60"
       >
         {/* --- Progress Sidebar --- */}
-        <div className="w-full md:w-72 bg-slate-50/50 border-r border-slate-100 p-10 hidden md:flex flex-col">
-          <div className="flex items-center gap-3 mb-12">
-            <div className={`w-10 h-10 rounded-2xl ${theme.primaryBg} flex items-center justify-center shadow-lg shadow-blue-200`}>
+        <div className="w-full md:w-72 bg-[#f8fafc] border-r border-slate-100 p-8 hidden md:flex flex-col relative">
+          <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-white to-transparent pointer-events-none" />
+
+          <div className="flex items-center gap-3 mb-12 relative z-10">
+            <div className={`w-10 h-10 rounded-xl bg-brand-primary flex items-center justify-center shadow-lg shadow-blue-500/20`}>
               <HiOutlineLightningBolt className="text-white text-xl" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-800">
-              Precision<span className="text-brand-primary">Health</span>
+            <span className="text-xl font-black tracking-tight text-slate-800">
+              Precision<span className="text-brand-primary">AI</span>
             </span>
           </div>
 
-          <nav className="flex-1 space-y-6">
-            {STEPS.map((step, idx) => (
-              <div key={step.id} className={`flex items-center gap-4 transition-all ${idx <= currentStep ? 'opacity-100' : 'opacity-30'}`}>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${idx === currentStep ? 'bg-white shadow-md text-brand-primary' : 'text-slate-400'}`}>
-                  {idx < currentStep ? <HiOutlineCheckCircle size={24} className="text-emerald-500" /> : step.icon}
+          <nav className="flex-1 space-y-4 relative z-10 mt-6">
+            {STEPS.map((step, idx) => {
+              const isActive = idx === currentStep;
+              const isPast = idx < currentStep;
+              return (
+                <div key={step.id} className={`flex items-center gap-4 p-3 rounded-2xl transition-all ${isActive ? 'bg-white shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100/60' : isPast ? 'opacity-70' : 'opacity-40'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-brand-primary/5 text-brand-primary' : 'bg-slate-50 text-slate-400'}`}>
+                    {isPast ? <HiOutlineCheckCircle size={24} className="text-emerald-500" /> : step.icon}
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Step 0{idx + 1}</p>
+                    <p className={`text-sm font-bold leading-tight ${isActive ? 'text-slate-800' : 'text-slate-500'}`}>{step.title}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Step 0{idx + 1}</p>
-                  <p className={`text-sm font-bold ${idx === currentStep ? 'text-slate-900' : 'text-slate-500'}`}>{step.title}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </nav>
         </div>
 
         {/* --- Content Area --- */}
         <div className="flex-1 flex flex-col bg-white">
-          <header className="p-8 flex justify-between items-center">
+          <header className="p-6 md:p-8 flex justify-between items-center border-b border-slate-50">
             <div className="md:hidden flex items-center gap-2">
-              <span className="font-bold text-brand-primary">Forge AI</span>
-              <span className="text-slate-300">|</span>
-              <span className="text-slate-500 text-sm">Step {currentStep + 1}</span>
+              <span className="font-black text-slate-800 tracking-tight">PrecisionAI</span>
+              <span className="text-slate-200">|</span>
+              <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Step 0{currentStep + 1}</span>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 ml-auto"><HiOutlineX size={20} /></button>
+            <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-slate-400 ml-auto transition-colors"><HiOutlineX size={18} /></button>
           </header>
 
           <main className="flex-1 px-8 md:px-16 overflow-y-auto pb-10">
@@ -238,25 +281,38 @@ export default function StartupOnboarding({ isOpen, onClose, userId }) {
                     </div>
                   </div>
                 )}
+
+                {currentStep === 5 && (
+                  <div className="space-y-8">
+                    <SectionHeader title="Daily Readiness" subtitle="Data for your personalized Day 1 plan." />
+
+                    <div className="grid grid-cols-1 gap-6">
+                      <SliderGroup label="Stress Level" value={formData.todayReadiness.stress} onChange={(v) => setFormData({ ...formData, todayReadiness: { ...formData.todayReadiness, stress: v } })} min={1} max={10} leftLabel="Zen" rightLabel="Overwhelmed" />
+                      <SliderGroup label="Energy Level" value={formData.todayReadiness.energy} onChange={(v) => setFormData({ ...formData, todayReadiness: { ...formData.todayReadiness, energy: v } })} min={1} max={10} leftLabel="Exhausted" rightLabel="Limitless" />
+                      <SliderGroup label="Muscle Soreness" value={formData.todayReadiness.soreness} onChange={(v) => setFormData({ ...formData, todayReadiness: { ...formData.todayReadiness, soreness: v } })} min={1} max={10} leftLabel="None" rightLabel="Severe" />
+                      <InputGroup label="Sleep Duration (Hours)" placeholder="8" type="number" value={formData.todayReadiness.sleepDuration} onChange={(v) => setFormData({ ...formData, todayReadiness: { ...formData.todayReadiness, sleepDuration: v } })} />
+                    </div>
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
           </main>
 
-          <footer className="p-8 border-t border-slate-100 flex justify-between bg-slate-50/30">
+          <footer className="p-6 px-8 md:px-16 border-t border-slate-100 flex justify-between bg-slate-50/50">
             <button
               onClick={handleBack}
               disabled={isSubmitting}
-              className={`px-6 py-3 font-bold text-slate-400 hover:text-slate-800 transition-all ${currentStep === 0 || isSubmitting ? 'opacity-0 pointer-events-none' : ''}`}
+              className={`px-6 py-2.5 font-bold text-sm text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all ${currentStep === 0 || isSubmitting ? 'opacity-0 pointer-events-none' : ''}`}
             >
               Back
             </button>
             <button
               onClick={handleNext}
               disabled={isSubmitting}
-              className="min-w-[160px] flex justify-center items-center px-10 py-4 bg-brand-primary text-white font-bold rounded-2xl shadow-xl shadow-blue-200 hover:scale-105 active:scale-95 transition-all disabled:opacity-70 disabled:scale-100"
+              className="min-w-[150px] flex justify-center items-center px-8 py-3 bg-brand-primary text-white text-sm font-bold rounded-xl shadow-[0_8px_20px_rgba(99,102,241,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:scale-100"
             >
               {isSubmitting ? (
-                <AiOutlineLoading3Quarters className="animate-spin text-xl" />
+                <AiOutlineLoading3Quarters className="animate-spin text-lg" />
               ) : (
                 currentStep === STEPS.length - 1 ? 'Finish Initialization' : 'Continue'
               )}
@@ -270,32 +326,57 @@ export default function StartupOnboarding({ isOpen, onClose, userId }) {
 
 // Subcomponents remain the same as your current code...
 const SectionHeader = ({ title, subtitle }) => (
-  <div className="mb-8">
-    <h2 className="text-3xl font-black text-slate-900 tracking-tight">{title}</h2>
-    <p className="text-slate-500 font-medium">{subtitle}</p>
+  <div className="mb-8 pt-4">
+    <h2 className="text-2xl font-black text-slate-900 tracking-tight">{title}</h2>
+    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{subtitle}</p>
   </div>
 );
 
 const InputGroup = ({ label, value, onChange, placeholder, type = "text" }) => (
-  <div className="space-y-2 flex-1">
-    <label className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] ml-1">{label}</label>
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-900 focus:border-brand-primary focus:ring-4 focus:ring-blue-50 outline-none transition-all font-semibold"
-    />
+  <div className="space-y-1.5 flex-1">
+    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">{label}</label>
+    <div className="relative flex items-center bg-slate-50 focus-within:bg-white focus-within:ring-2 focus-within:ring-brand-primary/20 rounded-xl px-4 py-3.5 border border-slate-200 focus-within:border-brand-primary shadow-inner shadow-slate-100/50 transition-all">
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="bg-transparent border-none outline-none text-sm w-full font-bold text-slate-700 placeholder:text-slate-400 placeholder:font-medium"
+      />
+    </div>
+  </div>
+);
+
+const SliderGroup = ({ label, value, onChange, min, max, leftLabel, rightLabel }) => (
+  <div className="space-y-3 flex-1">
+    <div className="flex justify-between items-center px-1">
+      <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{label}</label>
+      <span className="text-sm font-black text-brand-primary bg-indigo-50 px-3 py-1 rounded-lg">{value}</span>
+    </div>
+    <div className="px-1 relative">
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-brand-primary"
+      />
+      <div className="flex justify-between mt-2 px-1">
+        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{leftLabel}</span>
+        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{rightLabel}</span>
+      </div>
+    </div>
   </div>
 );
 
 const SelectButton = ({ label, active, onClick }) => (
   <button
     onClick={onClick}
-    className={`py-4 px-6 rounded-2xl border-2 font-bold text-sm capitalize transition-all
-      ${active ? 'border-brand-primary bg-blue-50 text-brand-primary shadow-sm' : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'}`}
+    className={`py-3.5 px-6 rounded-xl border text-xs font-bold capitalize transition-all
+      ${active ? 'border-brand-primary bg-indigo-50 text-brand-primary shadow-sm' : 'border-slate-200 bg-slate-50 text-slate-500 hover:border-slate-300 hover:bg-white'}`}
   >
-    {label}
+    {label.replace('_', ' ')}
   </button>
 );
 
@@ -307,9 +388,10 @@ const ArrayInput = ({ label, placeholder, items, onAdd, onRemove, tempValue, set
     </div>
     <div className="flex flex-wrap gap-2">
       {items.map((item, idx) => (
-        <span key={idx} className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold border border-slate-200">
+        <span key={idx} className="flex items-center gap-1.5 bg-white border border-slate-200 shadow-sm text-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold">
           {item}
-          <HiOutlineX className="cursor-pointer text-slate-400 hover:text-red-500" onClick={() => onRemove(idx)} />
+          <div className="w-px h-3 bg-slate-200 mx-0.5" />
+          <HiOutlineX className="cursor-pointer text-slate-400 hover:text-rose-500" onClick={() => onRemove(idx)} />
         </span>
       ))}
     </div>
