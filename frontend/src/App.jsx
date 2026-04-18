@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import UserDashboard from './pages/UserDashboard';
 import SmartDevices from './pages/SmartDevices';
+import AnatomyPage from './pages/AnatomyPage';
 import { Toaster } from 'sonner';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/smart-devices" element={<SmartDevices />} />
+          <Route path="/anatomy" element={<AnatomyPage />} />
         </Routes>
       </Router>
     </>

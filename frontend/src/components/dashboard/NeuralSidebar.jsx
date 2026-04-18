@@ -28,7 +28,7 @@ const NeuralSidebar = ({ isCollapsed, setCollapsed }) => {
     { name: 'Dashboard', icon: <HiOutlineCpuChip />, path: '/dashboard' },
     { name: 'Smart Devices', icon: <HiOutlineDevicePhoneMobile />, path: '/smart-devices' },
     { name: 'Reports', icon: <HiOutlineClipboardDocumentList />, path: null },
-    { name: 'Anatomy', icon: <HiOutlineHome />, path: null },
+    { name: 'Anatomy', icon: <HiOutlineHome />, path: '/anatomy' },
     { name: 'Settings', icon: <HiOutlineCog6Tooth />, path: null },
   ];
 
@@ -36,7 +36,7 @@ const NeuralSidebar = ({ isCollapsed, setCollapsed }) => {
     <motion.aside 
       initial={false}
       animate={{ width: isCollapsed ? 100 : 280 }}
-      className="hidden lg:flex flex-col bg-white border-r border-slate-100 relative z-50 transition-all duration-500 overflow-hidden"
+      className="hidden lg:flex flex-col bg-white border-r border-slate-100 relative z-50 transition-all duration-500 overflow-hidden shrink-0"
     >
       
       {/* Brand Section */}

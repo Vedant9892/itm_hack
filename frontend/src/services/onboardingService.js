@@ -1,9 +1,9 @@
 import api from './api';
 
 
-export const onBoarding = (onBoardingData) =>{
+export const onBoarding = async (onBoardingData) =>{
   try {
-    const response = api.post(`${import.meta.env.VITE_API_URL}/onboarding`, onBoardingData);
+    const response = await api.post(`${import.meta.env.VITE_API_BASE_URL}/onboarding`, onBoardingData);
     return response.data;
   } catch (error) {
     console.error('Onboarding failed', error);

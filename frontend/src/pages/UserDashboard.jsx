@@ -7,12 +7,13 @@ import {
   HiOutlineArrowTrendingUp, HiOutlineBolt, HiOutlineBeaker, HiOutlineMagnifyingGlass,
   HiOutlineArrowDownTray, HiOutlineCheckCircle, HiMiniPlay,
 } from 'react-icons/hi2';
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 import NeuralSidebar from '../components/dashboard/NeuralSidebar';
 
 /* ── TINY SHARED COMPONENTS ─────────────────────────── */
 const TileCard = ({ children, className = '', span = '' }) => (
   <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-    className={`bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden ${span} ${className}`}>
+    className={`bg-white rounded-2xl border border-slate-100/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden ${span} ${className}`}>
     {children}
   </motion.div>
 );
@@ -48,10 +49,15 @@ const RadialGauge = ({ value = 72 }) => {
 };
 
 /* ── RECOVERY BARS ─────────────────────────────────── */
-const Parameters = () => {
-  const muscles = [
+const Parameters = ({ readiness }) => {
+  const muscles = readiness ? [
+    { name: 'Sleep', pct: Math.min((readiness.sleepHours / 8) * 100, 100).toFixed(0), color: '#6366f1' },
+    { name: 'Soreness', pct: (readiness.soreness * 10).toFixed(0), color: '#2563eb' },
+    { name: 'Stress', pct: (readiness.stress * 10).toFixed(0), color: '#f43f5e' },
+    { name: 'Energy', pct: (readiness.energetic * 10).toFixed(0), color: '#10b981' },
+  ] : [
     { name: 'Sleep', pct: 85, color: '#6366f1' }, { name: 'Soreness', pct: 62, color: '#2563eb' },
-    { name: 'Stress', pct: 40, color: '#f43f5e' }, { name: 'Fatigue', pct: 90, color: '#10b981' },
+    { name: 'Stress', pct: 40, color: '#f43f5e' }, { name: 'Energy', pct: 90, color: '#10b981' },
   ];
   return (
     <div className="px-5 pb-5 space-y-2">
@@ -67,6 +73,31 @@ const Parameters = () => {
         </div>
       ))}
     </div>
+  );
+};
+
+/* ── DYNAMIC READINESS CONTENT ─────────────────────── */
+const ReadinessTileContent = ({ aiWorkout, todayReadiness, isLoading }) => {
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 h-[250px]">
+        <AiOutlineLoading3Quarters className="animate-spin text-3xl text-brand-primary mb-3" />
+        <h3 className="text-sm font-extrabold text-slate-700">Calculating Readiness...</h3>
+        <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-widest text-center">Analyzing biometrics</p>
+      </div>
+    );
+  }
+
+  const score = aiWorkout?.readinessScore ?? aiWorkout?.strengthScore ?? 78;
+
+  return (
+    <>
+      <RadialGauge value={score} />
+      <div className="border-t border-slate-50 pt-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-5 mb-2">Parameters</p>
+        <Parameters readiness={todayReadiness} />
+      </div>
+    </>
   );
 };
 
@@ -132,15 +163,39 @@ const getSessionImg = (name) => {
   return null;
 };
 
-const TodaySession = () => {
-  const sessionName = 'Back & Biceps — Pull B';
+const TodaySession = ({ aiWorkout, isLoading }) => {
+  if (isLoading) {
+    return (
+      <div className="relative overflow-hidden m-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-10 flex flex-col items-center justify-center text-white h-[320px]">
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, #6366f130 0%, transparent 60%)' }} />
+        <AiOutlineLoading3Quarters className="animate-spin text-4xl text-brand-primary mb-4 relative z-10" />
+        <h3 className="text-sm font-extrabold text-white relative z-10">Generating Day 1 Plan...</h3>
+        <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-widest relative z-10">Running inference via LPU</p>
+      </div>
+    );
+  }
+
+  const sessionName = aiWorkout ? aiWorkout.title : 'Back & Biceps — Pull B';
   const muscleImg   = getSessionImg(sessionName);
-  const exercises = [
-    { name: 'Barbell Row',  sets: 4, reps: '6–8',  last: '95 kg',  today: '100 kg'  },
-    { name: 'Pull-up',      sets: 3, reps: '8–10', last: 'BW+15',  today: 'BW+17.5' },
-    { name: 'Barbell Curl', sets: 3, reps: '10–12',last: '30 kg',  today: '32.5 kg' },
-    { name: 'Hammer Curl',  sets: 3, reps: '12',   last: '18 kg',  today: '18 kg'   },
-  ];
+  
+  const exercises = aiWorkout && aiWorkout.day1Workout
+    ? aiWorkout.day1Workout.map(ex => ({
+        name: ex.exercise,
+        sets: ex.sets,
+        reps: ex.reps,
+        last: '-',
+        today: ex.reason || 'AI Generated'
+      }))
+    : [
+        { name: 'Barbell Row',  sets: 4, reps: '6–8',  last: '95 kg',  today: '100 kg'  },
+        { name: 'Pull-up',      sets: 3, reps: '8–10', last: 'BW+15',  today: 'BW+17.5' },
+        { name: 'Barbell Curl', sets: 3, reps: '10–12',last: '30 kg',  today: '32.5 kg' },
+        { name: 'Hammer Curl',  sets: 3, reps: '12',   last: '18 kg',  today: '18 kg'   },
+      ];
+
+  const estTime = aiWorkout?.estimatedDuration ? `~${aiWorkout.estimatedDuration} min` : '~52 min';
+  const totalSets = exercises.reduce((acc, curr) => acc + (parseInt(curr.sets) || 0), 0);
+
   return (
     <div className="relative overflow-hidden m-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 p-5 text-white">
       <div className="absolute inset-0 pointer-events-none"
@@ -158,8 +213,8 @@ const TodaySession = () => {
               </div>
             )}
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-0.5">Today's Session</p>
-              <h3 className="text-base font-extrabold text-white">Back &amp; Biceps — Pull B</h3>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-0.5">Today's Session {aiWorkout && <span className="text-brand-primary">(AI Gen)</span>}</p>
+              <h3 className="text-base font-extrabold text-white">{sessionName}</h3>
             </div>
           </div>
         </div>
@@ -168,13 +223,13 @@ const TodaySession = () => {
         {/* Stats strip */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { icon: '⚖️', label: 'Volume',   value: '3,850 kg' },
-            { icon: '⏱',  label: 'Est. Time', value: '~52 min' },
-            { icon: '🔁',  label: 'Sets',     value: '13 total' },
+            { icon: '⚖️', label: 'Difficulty', value: aiWorkout ? aiWorkout.experienceLevel : 'Intermediate' },
+            { icon: '⏱',  label: 'Est. Time', value: estTime },
+            { icon: '🔁',  label: 'Sets',     value: `${totalSets} total` },
           ].map(({ icon, label, value }) => (
             <div key={label} className="bg-white/5 rounded-xl p-2.5 text-center border border-white/5">
               <p className="text-base">{icon}</p>
-              <p className="text-xs font-extrabold text-white mt-0.5">{value}</p>
+              <p className="text-xs font-extrabold text-white mt-0.5 max-w-full overflow-hidden text-ellipsis whitespace-nowrap">{value}</p>
               <p className="text-[9px] text-slate-500 uppercase tracking-wider">{label}</p>
             </div>
           ))}
@@ -185,16 +240,22 @@ const TodaySession = () => {
           <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-1">Exercise Plan</p>
           {exercises.map((ex, i) => (
             <div key={i} className="flex items-center justify-between rounded-lg px-3 py-2 bg-white/5 border border-white/5">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-bold text-slate-600 w-4">{i + 1}</span>
-                <div>
-                  <p className="text-xs font-bold text-white">{ex.name}</p>
+              <div className="flex items-center gap-2 max-w-[65%]">
+                <span className="text-[9px] font-bold text-slate-600 w-4 flex-shrink-0">{i + 1}</span>
+                <div className="overflow-hidden">
+                  <p className="text-xs font-bold text-white truncate">{ex.name}</p>
                   <p className="text-[9px] text-slate-500">{ex.sets} × {ex.reps}</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs font-extrabold text-white">{ex.today}</p>
-                <p className="text-[9px] text-slate-600">was {ex.last}</p>
+              <div className="text-right max-w-[32%] pl-1">
+                {aiWorkout ? (
+                  <p className="text-[8px] text-indigo-300 font-medium leading-tight truncate">{ex.today}</p>
+                ) : (
+                  <>
+                    <p className="text-xs font-extrabold text-white">{ex.today}</p>
+                    <p className="text-[9px] text-slate-600">was {ex.last}</p>
+                  </>
+                )}
               </div>
             </div>
           ))}
@@ -705,6 +766,12 @@ const UserDashboard = () => {
   const [tab, setTab] = useState('glance');
   const [selDay, setSelDay] = useState(null);
   const { user } = useSelector(s => s.auth);
+  const { todayWorkout, todayReadiness, isLoadingWorkout } = useSelector(s => s.workout || {});
+
+  console.log(todayWorkout);
+
+  const now = new Date();
+  const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden" style={{ zoom: 1.05 }}>
@@ -714,8 +781,8 @@ const UserDashboard = () => {
         {/* ── TOP BAR ── */}
         <header className="bg-white border-b border-slate-100 px-6 py-3 flex items-center justify-between shrink-0">
           <div>
-            <h1 className="text-lg font-extrabold text-slate-900">Intelligence Dashboard</h1>
-            <p className="text-xs text-slate-400 font-medium">Friday, 18 April 2025 · Week 16</p>
+            <h1 className="text-lg font-extrabold text-slate-900">Dashboard</h1>
+            <p className="text-xs text-slate-400 font-medium">{dayName}, {now.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           </div>
           <div className="flex items-center gap-3">
             <button className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-brandprimary hover:border-brand-primary transition-all">
@@ -759,17 +826,13 @@ const UserDashboard = () => {
                   {/* Col 1 Row 1 — Readiness Score */}
                   <TileCard>
                     <TileHeader title="Readiness Score" sub="Daily Command" icon={<HiOutlineBolt />} />
-                    <RadialGauge value={78} />
-                    <div className="border-t border-slate-50 pt-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-5 mb-2">Parameters</p>
-                      <Parameters />
-                    </div>
+                    <ReadinessTileContent aiWorkout={todayWorkout} todayReadiness={todayReadiness} isLoading={isLoadingWorkout} />
                   </TileCard>
 
                   {/* Col 2 — Today's Session spans both rows */}
                   <TileCard className="xl:row-span-2">
                     <TileHeader title="Today's Session" sub="Training Plan" icon={<HiOutlineFire />} />
-                    <TodaySession />
+                    <TodaySession aiWorkout={todayWorkout} isLoading={isLoadingWorkout} />
                   </TileCard>
 
                   {/* Col 3 — AI Insight spans both rows */}
@@ -958,19 +1021,50 @@ const UserDashboard = () => {
                   <TileCard className="xl:col-span-2">
                     <TileHeader title="Weekly Readiness Trend" sub="AI Engine Score" icon={<HiOutlineBolt />} />
                     <div className="px-5 pb-5">
-                      <div className="flex items-end gap-3 h-28">
-                        {[72, 65, 80, 58, 75, 82, 78].map((v, i) => (
-                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                            <span className="text-[9px] font-bold text-slate-400">{v}%</span>
-                            <motion.div initial={{ height: 0 }} animate={{ height: `${v}%` }}
-                              transition={{ delay: i * 0.05, duration: 0.5 }}
-                              className="w-full rounded-lg"
-                              style={{ background: v >= 75 ? '#10b981' : v >= 55 ? '#2563eb' : '#f43f5e' }} />
-                            <span className="text-[9px] text-slate-400 font-bold">
-                              {['M','T','W','T','F','S','S'][i]}
-                            </span>
-                          </div>
-                        ))}
+                      <div className="relative flex items-end gap-3 h-32 pt-4">
+                        {/* Threshold Lines */}
+                        <div className="absolute top-4 left-0 w-full border-t-2 border-dashed border-emerald-300 opacity-60 z-0">
+                          <span className="absolute -top-4 left-0 text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-sm">75% Optimal</span>
+                        </div>
+                        <div className="absolute top-[45%] left-0 w-full border-t-2 border-dashed border-blue-300 opacity-60 z-0">
+                          <span className="absolute -top-4 left-0 text-[10px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-sm">55% Ready</span>
+                        </div>
+
+                        {[72, 65, 80, 58, 75, 82, 78].map((v, i) => {
+                          const isToday = i === 6;
+                          const isPrimed = v >= 75;
+                          const isReady = v >= 55;
+                          
+                          const colors = isPrimed 
+                            ? { from: '#34d399', to: '#059669', shadow: 'rgba(16, 185, 129, 0.4)' }
+                            : isReady 
+                              ? { from: '#60a5fa', to: '#2563eb', shadow: 'rgba(59, 130, 246, 0.4)' }
+                              : { from: '#fb7185', to: '#e11d48', shadow: 'rgba(244, 63, 94, 0.4)' };
+
+                          return (
+                            <div key={i} className="relative z-10 flex-1 flex flex-col items-center gap-1 group">
+                              <span className={`text-xs font-black transition-all ${isToday ? 'text-slate-800 scale-110 mb-0.5' : 'text-slate-500 group-hover:text-slate-700'}`}>{v}%</span>
+                              <motion.div initial={{ height: 0 }} animate={{ height: `${v}%` }}
+                                transition={{ delay: i * 0.05, duration: 0.5, type: 'spring', stiffness: 120 }}
+                                className={`w-full rounded-lg transition-all ${isToday ? 'opacity-100' : 'opacity-85 group-hover:opacity-100 group-hover:-translate-y-1'}`}
+                                style={{ 
+                                  background: `linear-gradient(180deg, ${colors.from} 0%, ${colors.to} 100%)`, 
+                                  minHeight: '6px',
+                                  boxShadow: isToday ? `0 4px 14px 0 ${colors.shadow}, inset 0 2px 0 0 rgba(255,255,255,0.2)` : `inset 0 2px 0 0 rgba(255,255,255,0.2)`
+                                }} />
+                              <span className={`text-[10px] font-black mt-1 transition-all ${isToday ? 'text-brand-primary bg-blue-50 px-2.5 rounded-full py-1 shadow-sm' : 'text-slate-500 py-1'}`}>
+                                {isToday ? 'Today' : ['M','T','W','T','F','S','S'][i]}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Legend */}
+                      <div className="flex items-center gap-5 mt-5 pt-4 border-t border-slate-50 justify-center">
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-emerald-500" /><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Primed</span></div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-blue-500" /><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Standard</span></div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-rose-500" /><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Recovery</span></div>
                       </div>
                     </div>
                   </TileCard>
