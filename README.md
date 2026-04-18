@@ -26,10 +26,35 @@ The system is divided into multiple independent modules, communicating via RESTf
 ---
 
 ## Repository Structure
-* `/frontend`: React application built with Vite and Tailwind CSS.
-* `/backend`: Node.js and Express application orchestrating endpoints, AI processing, and integrations.
-* `/n8n`: Exported workflow JSON files for automated integrations.
-* `/devices`: Python/FastAPI environment for simulated device/hardware communication logic.
+
+```text
+itm_hack/
+├── backend/                  # Node.js API and Logic Engine
+│   ├── src/
+│   │   ├── googlefit/        # Biometric integration logic
+│   │   ├── models/           # MongoDB Mongoose schemas
+│   │   ├── routes/           # Express endpoints (e.g. sorenessRoutes)
+│   │   └── services/         # Generative AI SDK implementations
+│   ├── .env                  # Backend environment specifics
+│   └── server.js             # Main server entry point
+├── frontend/                 # Vite + React Interface
+│   ├── src/
+│   │   ├── assets/           # Static media and geometry logic
+│   │   ├── components/       # Standalone UI components
+│   │   ├── pages/            # Core views (e.g. Soreness, Dashboard)
+│   │   ├── services/         # Data fetching and mutation controllers
+│   │   ├── App.jsx           # Client-side router logic
+│   │   └── main.jsx          # Virtual DOM execution
+│   └── .env                  # Client-side routing references
+├── n8n/                      # Automation Workflows
+│   ├── daycal.json           # Daily activity scheduling variables
+│   ├── soreness.json         # Orchestrator for recovery planning
+│   └── watch.json            # Device ingestion pathways
+├── devices/                  # Python API stack for simulated device I/O
+├── extension/                # Chrome extension source codes
+├── .env.example              # Central template demonstrating required vars
+└── README.md                 # Primary system documentation
+```
 
 ---
 
