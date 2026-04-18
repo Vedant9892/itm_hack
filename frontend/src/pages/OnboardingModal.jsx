@@ -116,9 +116,9 @@ export default function StartupOnboarding({ isOpen, onClose }) {
       // Fire off API request in the background
       onBoarding(cleanData)
         .then(result => {
-          if (result && result.todayReadiness) {
-            dispatch(setTodayReadiness(result.todayReadiness));
-          }
+          // Push locally sourced telemetry as backend only responds with a single combined readiness score integer
+          dispatch(setTodayReadiness(cleanData.todayReadiness));
+          
           if (result && result.aiAnalysis) {
             dispatch(setTodayWorkout(result.aiAnalysis));
           }

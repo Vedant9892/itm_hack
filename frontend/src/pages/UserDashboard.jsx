@@ -51,10 +51,10 @@ const RadialGauge = ({ value = 72 }) => {
 /* ── RECOVERY BARS ─────────────────────────────────── */
 const Parameters = ({ readiness }) => {
   const muscles = readiness ? [
-    { name: 'Sleep', pct: Math.min((readiness.sleepHours / 8) * 100, 100).toFixed(0), color: '#6366f1' },
+    { name: 'Sleep', pct: Math.min(((readiness.sleepDuration || readiness.sleepHours || 8) / 8) * 100, 100).toFixed(0), color: '#6366f1' },
     { name: 'Soreness', pct: (readiness.soreness * 10).toFixed(0), color: '#2563eb' },
     { name: 'Stress', pct: (readiness.stress * 10).toFixed(0), color: '#f43f5e' },
-    { name: 'Energy', pct: (readiness.energetic * 10).toFixed(0), color: '#10b981' },
+    { name: 'Energy', pct: ((readiness.energy || readiness.energetic || 5) * 10).toFixed(0), color: '#10b981' },
   ] : [
     { name: 'Sleep', pct: 85, color: '#6366f1' }, { name: 'Soreness', pct: 62, color: '#2563eb' },
     { name: 'Stress', pct: 40, color: '#f43f5e' }, { name: 'Energy', pct: 90, color: '#10b981' },
