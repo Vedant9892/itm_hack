@@ -15,26 +15,69 @@ class AIService {
 
   async generateDay1Workout(userProfile) {
     try {
+      // Readiness defaults: assume average values if not provided
+      const readiness = userProfile.todayReadiness || userProfile.readiness || {};
+      const energetic =
+        readiness.energetic ??
+        readiness.energy ??
+        readiness.energy_level ??
+        5;
+      const soreness =
+        readiness.soreness ??
+        readiness.soreness_level ??
+        3;
+      const stress =
+        readiness.stress ??
+        readiness.stress_level ??
+        3;
+      const sleepHours =
+        readiness.sleep ??
+        readiness.sleepDuration ??
+        readiness.sleep_quality ??
+        7;
+
+      const equipment = Array.isArray(userProfile.equipment) ? userProfile.equipment : [];
+      const injuries = Array.isArray(userProfile.injuries) ? userProfile.injuries : [];
+      const strengthAssessment = userProfile.strengthAssessment || {};
+      const pushups = strengthAssessment.pushups ?? 0;
+      const squats = strengthAssessment.squats ?? 0;
+      const plankSeconds = strengthAssessment.plankSeconds ?? 0;
+
       const prompt = `You are an expert AI Fitness Coach. Analyze the user profile and generate a personalized "Day 1 Workout" plan.
 
 USER DATA:
 - Gender: ${userProfile.gender}, Weight: ${userProfile.weight}kg, Height: ${userProfile.height}cm
 - Goal: ${userProfile.goal}, Workout Type: ${userProfile.workoutType}
-- Equipment: ${userProfile.equipment.join(', ')}
-- Injuries/Conditions: ${userProfile.injuries.join(', ') || 'None'}
+- Equipment: ${equipment.join(', ') || 'None'}
+- Injuries/Conditions: ${injuries.join(', ') || 'None'}
 
 STRENGTH ASSESSMENT:
-- Pushups: ${userProfile.strengthAssessment.pushups}
-- Squats: ${userProfile.strengthAssessment.squats}
-- Plank: ${userProfile.strengthAssessment.plankSeconds} seconds
+- Pushups: ${pushups}
+- Squats: ${squats}
+- Plank: ${plankSeconds} seconds
 
-Based on this data, determine their experience level and generate a Day 1 workout.
+TODAY'S READINESS:
+- Energy Level: ${energetic}/10
+- Muscle Soreness: ${soreness}/10
+- Stress Level: ${stress}/10
+- Sleep Last Night: ${sleepHours}/10
+
+Based on this data, determine their experience level and generate a Day 1 workout, with estimated duration in minutes.
+Give it a title for example, "Back - Biceps", "Chest - Triceps", "Legs - Shoulders", "Full Body", etc.
 IMPORTANT: If the user has injuries, avoid exercises that aggravate those areas.
+IMPORTANT: If sleep < 5 or stress > 7 or soreness > 7: REDUCE volume by 20% and use lighter exercises.
+IMPORTANT: If energy >= 8 and stress <= 3 and soreness <= 3: INCREASE intensity.
+Based on all the data, provide a readiness score (0-100) and a brief reason for any workout adjustments.
 
 Return ONLY a valid JSON object (no markdown, no explanation):
 {
   "experienceLevel": "Beginner | Intermediate | Advanced",
   "strengthScore": <number 0-100>,
+  "title": "<title>",
+  "estimatedDuration": "<duration>",
+  "workoutAdjustment": "normal | reduced | increased",
+  "readinessScore": <number 0-100>,
+  "adjustmentReason": "<brief reason based on readiness>",
   "day1Workout": [
     { "exercise": "<name>", "sets": "<number>", "reps": "<range>", "reason": "<brief reason>" }
   ],
@@ -45,11 +88,19 @@ Return ONLY a valid JSON object (no markdown, no explanation):
         messages: [{ role: 'user', content: prompt }],
         model: 'llama-3.3-70b-versatile',
         temperature: 0.7,
-        response_format: { type: 'json_object' } // Force clean JSON output
+        response_format: { type: 'json_object' }
       });
 
       const text = chatCompletion.choices[0]?.message?.content || '';
-      return JSON.parse(text);
+      const parsed = JSON.parse(text);
+
+      // Ensure readinessScore is always present even if model omits it.
+      if (typeof parsed.readinessScore !== 'number' || Number.isNaN(parsed.readinessScore)) {
+        const score = ((energetic * 10) + ((10 - soreness) * 10) + ((10 - stress) * 10) + ((sleepHours / 10) * 100)) / 4;
+        parsed.readinessScore = Math.max(0, Math.min(100, Math.round(score)));
+      }
+
+      return parsed;
 
     } catch (error) {
       console.error('Groq AI Error:', error.message);
@@ -76,8 +127,8 @@ TODAY'S FEEDBACK (Readiness Check):
 
 LAST WORKOUT PERFORMANCE:
 ${lastWorkoutLogs.length > 0
-  ? lastWorkoutLogs.map(l => `- ${l.exercise_name}: ${l.set_number} sets x ${l.reps} reps @ ${l.weight_kg}kg (RPE ${l.rpe ?? 'N/A'})`).join('\n')
-  : 'No previous workout data available.'}
+          ? lastWorkoutLogs.map(l => `- ${l.exercise_name}: ${l.set_number} sets x ${l.reps} reps @ ${l.weight_kg}kg (RPE ${l.rpe ?? 'N/A'})`).join('\n')
+          : 'No previous workout data available.'}
 
 INSTRUCTIONS:
 - If sleep < 5 or stress > 7 or soreness > 7: REDUCE volume by 20%, use lighter exercises.
